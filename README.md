@@ -22,8 +22,22 @@ python train_end2endvisual.py
 ```
 
 To run adaptation module training on needle tracking task:
-First replace the psm_env.py and surrol_env.py with versions in the same subdirectory but with needletrack ending.
+First replace the psm_env.py and surrol_env.py with versions in the same subdirectory but with needletrack and adapt_track ending respectively.
 Then execute
 ```
 python train_adapt_needletrack.py
+```
+
+To run state-based DDPG policy on needle tracking task:
+First replace the psm_env.py and surrol_env.py with versions in the same subdirectory but with needletrack ending.
+Then execute
+```
+python train_statebased_needletrack.py
+```
+
+To run End2End Visual DDPG policy on needle tracking task:
+First replace the psm_env.py and surrol_env.py with versions in the same subdirectory but with ImageObs and needletrack ending respectively.
+Then execute
+```
+python train_statebased_needletrack.py
 ```
