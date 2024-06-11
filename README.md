@@ -13,3 +13,9 @@ To run adaptation module training on needle reaching task:
 ```
 python train_adapt.py
 ```
+
+To run adaptation module training on needle reaching task:
+First swap out the psm_env.py and the surrol_env.py with versions in the same subdirectory but with ImageObs ending.
+```
+python train_end2endvisual.py
+```
