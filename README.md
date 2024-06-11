@@ -5,11 +5,11 @@ It contains modifications to the OpenAI gym that makes it compatible with RMA fr
 It is based on SurRoL, an open-source RL framework for surgical robotic learning available at https://github.com/med-air/SurRoL.
 
 To run state-based SAC policy on needle reaching task:
-'''
+```
 python train.py
-'''
+```
 
 To run adaptation module training on needle reaching task:
-'''
+```
 python train_adapt.py
-'''
+```
