@@ -17,6 +17,7 @@ from surrol.const import ROOT_DIR_PATH, ASSET_DIR_PATH
 # only for demo
 import time
 import pandas as pd
+import cv2
 
 
 def goal_distance(goal_a, goal_b):
@@ -85,9 +86,10 @@ class PsmEnv(SurRoLGoalEnv):
         """ All sparse reward.
         The reward is 0 or -1.
         """
-        # d = goal_distance(achieved_goal, desired_goal)
+        d = goal_distance(achieved_goal, desired_goal)
+        return -d
         # return - (d > self.distance_threshold).astype(np.float32)
-        return self._is_success(achieved_goal, desired_goal).astype(np.float32) - 1.
+        # return self._is_success(achieved_goal, desired_goal).astype(np.float32) - 1.
 
     def _env_setup(self):
         # for venv
@@ -167,11 +169,24 @@ class PsmEnv(SurRoLGoalEnv):
             # tip position
             achieved_goal = np.array(get_link_pose(self.psm1.body, self.psm1.TIP_LINK_INDEX)[0])
 
-        observation = np.concatenate([
+        observation = np.concatenate([ # robot_state
             robot_state, object_pos.ravel(), object_rel_pos.ravel(),
             waypoint_pos.ravel(), waypoint_rot.ravel()  # achieved_goal.copy(),
         ])
+        # print(observation.shape)
+        # image = self.render('rgb_array')
+        # image = cv2.resize(image, (224, 224))
+        # image = self.render('rgb_array').copy()
+        # # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # cv2.imwrite('test_img.png', image)
+        # image = cv2.resize(image, (224, 224))
+        # image = np.transpose(image, (2, 0, 1))
+        self.observation = observation.copy()
+        self.achieved_goal = achieved_goal.copy()
+        self.desired_goal = self.goal.copy()
         obs = {
+            # 'image': image,
+            # 'robot_state': np.array([robot_state]).copy(),
             'observation': observation.copy(),
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy()
@@ -283,6 +298,7 @@ class PsmEnv(SurRoLGoalEnv):
     def _sample_goal_callback(self):
         """ Set the red sphere pose for goal visualization
         """
+        # pass
         p.resetBasePositionAndOrientation(self.obj_ids['fixed'][0], self.goal, (0, 0, 0, 1))
 
     def _activate(self, idx: int):

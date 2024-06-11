@@ -14,11 +14,78 @@ from surrol.utils.pybullet_utils import (
 )
 import numpy as np
 
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+import torch.nn as nn
+import torch as th
+
 RENDER_HEIGHT = 480  # train
 RENDER_WIDTH = 640
 # RENDER_HEIGHT = 1080  # record
 # RENDER_WIDTH = 1920
 
+class NatureCNN(BaseFeaturesExtractor):
+    """
+    CNN from DQN Nature paper:
+        Mnih, Volodymyr, et al.
+        "Human-level control through deep reinforcement learning."
+        Nature 518.7540 (2015): 529-533.
+
+    :param observation_space:
+    :param features_dim: Number of features extracted.
+        This corresponds to the number of unit for the last layer.
+    :param normalized_image: Whether to assume that the image is already normalized
+        or not (this disables dtype and bounds checks): when True, it only checks that
+        the space is a Box and has 3 dimensions.
+        Otherwise, it checks that it has expected dtype (uint8) and bounds (values in [0, 255]).
+    """
+
+    def __init__(
+        self,
+        observation_space: gym.Space,
+        features_dim: int = 3,
+        normalized_image: bool = False,
+    ) -> None:
+        # assert isinstance(observation_space, gym.spaces.Box), (
+        #     "NatureCNN must be used with a gym.spaces.Box ",
+        #     f"observation space, not {observation_space}",
+        # )
+        super().__init__(observation_space, features_dim)
+        # We assume CxHxW images (channels first)
+        # Re-ordering will be done by pre-preprocessing or wrapper
+        # assert is_image_space(observation_space, check_channels=False, normalized_image=normalized_image), (
+        #     "You should use NatureCNN "
+        #     f"only with images not with {observation_space}\n"
+        #     "(you are probably using `CnnPolicy` instead of `MlpPolicy` or `MultiInputPolicy`)\n"
+        #     "If you are using a custom environment,\n"
+        #     "please check it using our env checker:\n"
+        #     "https://stable-baselines3.readthedocs.io/en/master/common/env_checker.html.\n"
+        #     "If you are using `VecNormalize` or already normalized channel-first images "
+        #     "you should pass `normalize_images=False`: \n"
+        #     "https://stable-baselines3.readthedocs.io/en/master/guide/custom_env.html"
+        # )
+        n_input_channels = 3#observation_space.shape[0]
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_input_channels, 32, kernel_size=8, stride=4, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+
+        # Compute shape by doing one forward pass
+        # with th.no_grad():
+        #     n_flatten = self.cnn(th.as_tensor(observation_space.sample()[None]).float()).shape[1]
+        n_flatten = 576*64
+
+        # self.linear = nn.Sequential(nn.Linear(n_flatten, 576), nn.ReLU())
+        self.linear = nn.Linear(n_flatten, 3)
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        observations = observations / 255.0
+        observation = self.cnn(observations)
+        return self.linear(observation)#self.linear2(self.linear1(self.linear(observation)))
 
 class SurRoLEnv(gym.Env):
     """
@@ -31,6 +98,7 @@ class SurRoLEnv(gym.Env):
     def __init__(self, render_mode: str = None):
         # rendering and connection options
         self._render_mode = render_mode
+        # self.num_envs = 1
         # render_mode = 'human'
         # if render_mode == 'human':
         #     self.cid = p.connect(p.SHARED_MEMORY)
@@ -42,6 +110,14 @@ class SurRoLEnv(gym.Env):
             self.cid = p.connect(p.DIRECT)
             # See PyBullet Quickstart Guide Synthetic Camera Rendering
             # TODO: no light when using direct without egl
+            # p.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+            # egl = pkgutil.get_loader('eglRenderer')
+            # if (egl):
+            #     pluginId = p.loadPlugin(egl.get_filename(), "_eglRendererPlugin")
+            # else:
+            #     pluginId = p.loadPlugin("eglRendererPlugin")
+            # print("pluginId=",pluginId)
             if socket.gethostname().startswith('pc') or True:
                 # TODO: not able to run on remote server
                 egl = pkgutil.get_loader('eglRenderer')
@@ -65,6 +141,10 @@ class SurRoLEnv(gym.Env):
         self.obj_ids = {'fixed': [], 'rigid': [], 'deformable': []}
 
         self.seed()
+        self.image_space = gym.spaces.Box(0, 255, shape=(3,224,224), dtype='uint8'),
+        # self.model_adapt = NatureCNN(self.image_space, 3).cuda()
+        # self.model_adapt = th.load("/home/jyfang/SurRoL/model_adapt_new3/model_adapt_jun02_050000.pt").cuda()
+        self.model_adapt = th.load("/home/jyfang/SurRoL/model_adapt_red_n_no_dot/model_adapt_jun02_050000.pt").cuda()
 
         # self.actions = []  # only for demo
         self._env_setup()
@@ -82,6 +162,8 @@ class SurRoLEnv(gym.Env):
                 desired_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
                 achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
                 observation=spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
+                # robot_state=spaces.Box(-np.inf, np.inf, shape=obs['robot_state'].shape, dtype='float32'),
+                # image=spaces.Box(0, 255, shape=obs['image'].shape, dtype='uint8'),
             ))
         else:
             raise NotImplementedError
@@ -105,15 +187,21 @@ class SurRoLEnv(gym.Env):
         obs = self._get_obs()
 
         done = False
+        self.success_epi = False
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
         } if isinstance(obs, dict) else {'achieved_goal': None}
+        if info['is_success']:
+            self.success_epi = True
+            # done = True
+            # print('success')
         if isinstance(obs, dict):
             reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
         else:
             reward = self.compute_reward(obs, self.goal, info)
         # if len(self.actions) > 0:
         #     self.actions[-1] = np.append(self.actions[-1], [reward])  # only for demo
+        # truncated = False
         return obs, reward, done, info
 
     def reset(self):

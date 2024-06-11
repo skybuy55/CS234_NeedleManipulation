@@ -1,7 +1,7 @@
 <?xml version="0.0" ?>
 <robot name="sphere">
     <material name="red">
-        <color rgba="1 0 0 0.5"/>
+        <color rgba="1 0 0 1"/>
     </material>
 
     <link name="baseLink">
@@ -14,6 +14,7 @@
             <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
                 <sphere radius="0.003"/>
+                <!-- <cylinder length="0.003" radius="0.0005"/> -->
             </geometry>
             <material name="red"/>
         </visual>

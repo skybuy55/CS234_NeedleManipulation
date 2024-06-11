@@ -9,9 +9,14 @@ from surrol.utils.pybullet_utils import (
     wrap_angle
 )
 from surrol.const import ASSET_DIR_PATH
+import cv2
+import torch as th
 
+def goal_distance(goal_a, goal_b):
+    assert goal_a.shape == goal_b.shape
+    return np.linalg.norm(goal_a - goal_b, axis=-1)
 
-class NeedlePick(PsmEnv):
+class NeedlePickV1(PsmEnv):
     POSE_TRAY = ((0.55, 0, 0.6751), (0, 0, 0))
     WORKSPACE_LIMITS = ((0.50, 0.60), (-0.05, 0.05), (0.685, 0.745))  # reduce tip pad contact
     SCALING = 5.
@@ -19,7 +24,7 @@ class NeedlePick(PsmEnv):
     # TODO: grasp is sometimes not stable; check how to fix it
 
     def _env_setup(self):
-        super(NeedlePick, self)._env_setup()
+        super(NeedlePickV1, self)._env_setup()
         # np.random.seed(4)  # for experiment reproduce
         self.has_object = True
         self._waypoint_goal = True
@@ -64,6 +69,21 @@ class NeedlePick(PsmEnv):
                          workspace_limits[1].mean() + 0.01 * np.random.randn() * self.SCALING,
                          workspace_limits[2][1] - 0.04 * self.SCALING])
         return goal.copy()
+    
+    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info):
+        """ All sparse reward.
+        The reward is 0 or -1.
+        """
+        
+        return self._is_success(achieved_goal, desired_goal).astype(np.float32) - 1.
+
+    def _is_success(self, achieved_goal, desired_goal):
+        """ Indicates whether or not the achieved goal successfully achieved the desired goal.
+        """
+        achieved_goal = self.achieved_goal#achieved_goal.detach().cpu().numpy()
+        # d = goal_distance(achieved_goal[2], desired_goal[2])
+        d = np.abs(achieved_goal[2]-desired_goal[2])
+        return (d < self.distance_threshold).astype(np.float32)
 
     def _sample_goal_callback(self):
         """ Define waypoints
@@ -109,6 +129,63 @@ class NeedlePick(PsmEnv):
     
     # def compute_reward(self):
     #     d = goal_distance(achieved_goal, desired_goal)
+    def _get_obs(self) -> dict:
+        robot_state = self._get_robot_state(idx=0)
+        # TODO: may need to modify
+        if self.has_object:
+            pos, _ = get_link_pose(self.obj_id, -1)
+            object_pos = np.array(pos)
+            pos, orn = get_link_pose(self.obj_id, self.obj_link1)
+            waypoint_pos = np.array(pos)
+            # rotations
+            waypoint_rot = np.array(p.getEulerFromQuaternion(orn))
+            # relative position state
+            object_rel_pos = object_pos - robot_state[0: 3]
+        else:
+            # TODO: can have a same-length state representation
+            object_pos = waypoint_pos = waypoint_rot = object_rel_pos = np.zeros(0)
+
+        if self.has_object:
+            # object/waypoint position
+            achieved_goal = object_pos.copy() if not self._waypoint_goal else waypoint_pos.copy()
+        else:
+            # tip position
+            achieved_goal = np.array(get_link_pose(self.psm1.body, self.psm1.TIP_LINK_INDEX)[0])
+
+        observation = np.concatenate([ 
+            robot_state, object_pos.ravel(), object_rel_pos.ravel(),
+            waypoint_pos.ravel(), waypoint_rot.ravel()  # achieved_goal.copy(),
+        ])
+        # print(observation.shape)
+        image = self.render('rgb_array').copy()
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # cv2.imwrite('test_img.png', image)
+        image = cv2.resize(image, (224, 224))
+        image = np.transpose(image, (2, 0, 1))
+        image = image[np.newaxis, :, :, :]
+        # print(image.shape)
+        achieved_goal_est = self.model_adapt(th.from_numpy(image).cuda()).reshape(-1,)
+        
+        self.feat_adapt = achieved_goal_est
+        achieved_goal_est_cp = achieved_goal_est.clone().detach()
+
+        self.observation = observation.copy()
+        self.achieved_goal = achieved_goal.copy()
+        self.desired_goal = self.goal.copy()
+        object_pos_est = achieved_goal_est[:3]
+        object_pos_rel_est = object_pos_est - th.tensor(robot_state[0: 3]).cuda()
+        waypoint_pos_est = achieved_goal_est[3:6]
+        waypoint_ori_est = achieved_goal_est[6:]
+        self.gt_obs = np.concatenate([object_pos.ravel(), waypoint_pos.ravel(), waypoint_rot.ravel()])
+        self.gt_obs = th.tensor(self.gt_obs).cuda()
+        # print(self.gt_obs.shape)
+        observation_est = th.cat([th.tensor(robot_state).cuda(), object_pos_est, object_pos_rel_est, waypoint_pos_est, waypoint_ori_est]).cuda()
+        obs = {
+            'observation': observation_est,
+            'achieved_goal': waypoint_pos_est,
+            'desired_goal': self.desired_goal,
+        }
+        return obs
 
     def get_oracle_action(self, obs) -> np.ndarray:
         """

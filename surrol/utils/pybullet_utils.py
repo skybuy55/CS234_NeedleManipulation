@@ -850,11 +850,16 @@ def render_image(width, height, view_matrix, proj_matrix, shadow=1):
                                            viewMatrix=view_matrix,
                                            projectionMatrix=proj_matrix,
                                            shadow=shadow,
-                                           lightDirection=(10, 0, 10),
+                                           # lightDirection=(10, 0, 10),
                                            renderer=p.ER_BULLET_HARDWARE_OPENGL)
 
     rgb_array = np.array(px, dtype=np.uint8)
     rgb_array = np.reshape(rgb_array, (height, width, 4))
 
     rgb_array = rgb_array[:, :, :3]
+    mask = np.interp(mask, (-1, mask.max()), (0, 255))
+    mask = np.array(mask, dtype=np.uint8).reshape((height, width, 1))
+    mask = np.concatenate([mask, mask, mask], axis=2)
+    mask = np.reshape(mask, (height, width, 3))
+    mask = mask[:, :, :3]
     return rgb_array, mask

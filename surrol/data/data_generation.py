@@ -10,6 +10,8 @@ import time
 import numpy as np
 import imageio
 from surrol.const import ROOT_DIR_PATH
+from gym.envs.registration import register
+import cv2
 
 parser = argparse.ArgumentParser(description='generate demonstrations for imitation')
 parser.add_argument('--env', type=str, required=True,
@@ -26,7 +28,11 @@ infos = []
 
 images = []  # record video
 masks = []
-
+# register(
+#     id='NeedlePick-v0',
+#     entry_point='surrol.tasks.needle_pick:NeedlePick',
+#     max_episode_steps=50,
+# )
 
 def main():
     env = gym.make(args.env, render_mode='human')  # 'human'
@@ -47,7 +53,7 @@ def main():
         goToGoal(env, obs)
         cnt += 1
 
-    file_name = "data_"
+    file_name = "data_image_"
     file_name += args.env
     file_name += "_" + init_state_space
     file_name += "_" + str(num_itr)
@@ -98,6 +104,10 @@ def goToGoal(env, last_obs):
             img = env.render('rgb_array')
             images.append(img)
             # masks.append(mask)
+            # print(time_step)
+            # if time_step == 0:
+            #     cv2.imwrite('img2.png', cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            #     print('save')
 
         obs, reward, done, info = env.step(action)
         # print(f" -> obs: {obs}, reward: {reward}, done: {done}, info: {info}.")

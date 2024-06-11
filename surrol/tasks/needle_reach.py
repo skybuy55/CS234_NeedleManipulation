@@ -62,7 +62,7 @@ class NeedleReach(PsmEnv):
         """ Samples a new goal and returns it.
         """
         pos, orn = get_link_pose(self.obj_id, self.obj_link1)
-        goal = np.array([pos[0], pos[1], pos[2] + 0.005 * self.SCALING])
+        goal = np.array([pos[0], pos[1], 3.41057634])#pos[2] ])#+ 0.005 * self.SCALING])
         return goal.copy()
 
     def get_oracle_action(self, obs) -> np.ndarray:

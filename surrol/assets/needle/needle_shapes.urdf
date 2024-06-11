@@ -1,11 +1,11 @@
 <?xml version="0.0" ?>
 <robot name="needle">
-    <!-- <material name="red">
+    <material name="red">
         <color rgba="1 0 0 1"/>
-    </material> -->
-    <material name="grey">
-        <color rgba="0.85 0.85 0.85 1"/>
     </material>
+    <!-- <material name="grey">
+        <color rgba="0.85 0.85 0.85 1"/>
+    </material> -->
 
     <link name="baseLink">
         <contact>
@@ -26,17 +26,17 @@
         <visual>
             <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
-                <mesh filename="meshes/needle_40mm.obj" scale="1 1 1"/>
-                <!-- <mesh filename="meshes/complex_bent_needle3.obj" scale="0.01 0.01 0.01"/> -->
+                <!-- <mesh filename="meshes/needle_40mm.obj" scale="1 1 1"/> -->
+                <mesh filename="meshes/bent_sealed_tapered_needle2.obj" scale="0.01 0.01 0.01"/>
             </geometry>
-            <material name="grey"/>
-             <!-- <material name="red"/> -->
+            <!-- <material name="grey"/> -->
+             <material name="red"/>
         </visual>
         <collision>
             <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
-                <!-- <mesh filename="meshes/complex_bent_needle3_vhacd.obj" scale="0.01 0.01 0.01"/> -->
-                <mesh filename="meshes/needle_40mm_vhacd.obj" scale="1 1 1"/>
+                <mesh filename="meshes/bent_sealed_tapered_needle2_vhacd.obj" scale="0.01 0.01 0.01"/>
+                <!-- <mesh filename="meshes/needle_40mm_vhacd.obj" scale="1 1 1"/> -->
             </geometry>
         </collision>
     </link>

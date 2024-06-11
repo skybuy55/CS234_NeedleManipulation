@@ -2,6 +2,7 @@
 <robot name="sphere">
     <material name="white">
         <color rgba="0.96 0.96 0.96 1"/>
+        <!-- <color rgba="0.87 0.69 0.69 1"/> -->
     </material>
 
     <link name="baseLink">
@@ -16,7 +17,7 @@
         <visual>
             <origin rpy="0 0 0" xyz="0 0 0"/>
             <geometry>
-                <mesh filename="meshes/gauze.obj" scale="1 1 1"/>
+                <mesh filename="meshes/gauze.obj" scale="2 2 2"/>
             </geometry>
             <!--      <geometry>-->
             <!--        <box size="0.004 0.002 0.003"/>-->
