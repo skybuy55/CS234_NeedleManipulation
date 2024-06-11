@@ -22,7 +22,7 @@ python train_end2endvisual.py
 ```
 
 To run adaptation module training on needle tracking task:
-First replace the psm_env.py with versions in the same subdirectory but with needletrack ending.
+First replace the psm_env.py and surrol_env.py with versions in the same subdirectory but with needletrack ending.
 Then execute
 ```
 python train_adapt_needletrack.py
