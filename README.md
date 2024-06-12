@@ -41,3 +41,16 @@ Then execute
 ```
 python train_statebased_needletrack.py
 ```
+
+## Needle Tracking Adaptation Result (Updated)
+<p align="center">
+   <img src="Updated_figures/needle_track_end2endvisual_rewards.png" alt="needle tracking rewards"/>
+</p>
+<p align="center">
+   <img src="Updated_figures/needle_track_end2endvisual_successes.png" alt="needle tracking success rates"/>
+</p>
+The adaptation module in the needle tracking task is the same as in needle reaching and the same end2end visual SAC, DDPG baselines were used. In addition to the SAC, DDPG, and the two-stage framework, we also conduct an ablation study on the two-stage policy framework. Specifically, we explore the effects of using a fixed goal for the entire episode, derived from the inferred goal out of the adaptation module at the starting frame of the 50-timestep episode. All four methods are trained for 70k timesteps.
+
+It can be seen the adaptation module achieves **100%** success, while other end-to-end image-based methods struggle to achieve higher than 20% success rate. The reward of state-based SAC + Adaptation achieves 21.54, which is **comparable to oracle SAC policy**. Moreover, the vast difference in performance between policy with adaptation module and the ablated policy (without updating the adaptation module) showcases the necessity of updating the inputs on different time steps.
+
+
